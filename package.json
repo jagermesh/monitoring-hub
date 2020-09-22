@@ -5,10 +5,15 @@
   "bugs": {
     "url": "https://github.com/jagermesh/monitoring-hub/issues"
   },
-  "dependencies": {
+  "devDependencies": {
     "gulp": "^4.0.2",
     "gulp-jshint": "^2.1.0",
     "jshint": "^2.12.0",
+    "monitoring-dashboard": "*",
+    "monitoring-progress-logger": "*",
+    "monitoring-sensor": "*"
+  },
+  "dependencies": {
     "socket.io": "^2.3.0"
   },
   "deprecated": false,
