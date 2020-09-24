@@ -20,7 +20,7 @@ module.exports = function(config) {
     const sensors         = [];
     const sensorDataCache = [];
 
-    // info server
+    // data server
 
     _this.log('Starting data server');
 
