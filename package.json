@@ -9,9 +9,9 @@
     "gulp": "^4.0.2",
     "gulp-jshint": "^2.1.0",
     "jshint": "^2.12.0",
-    "monitoring-dashboard": "*",
-    "monitoring-progress-logger": "*",
-    "monitoring-sensor": "*"
+    "monitoring-dashboard": "^1.0.9",
+    "monitoring-progress-logger": "^1.0.5",
+    "monitoring-sensor": "^1.0.4"
   },
   "dependencies": {
     "socket.io": "^2.3.0",
