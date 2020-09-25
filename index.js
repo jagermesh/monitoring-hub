@@ -78,10 +78,13 @@ module.exports = function(config) {
           }
           setTimeout(function() {
             _this.log('Sending sensors data to observer');
-            for (let sensorUid in sensorDataCache) {
-              let sensorData = sensorDataCache[sensorUid];
-              _this.log('Sending sensor data to observer',  { sensorUid: sensorData.sensorUid, metricUid: sensorData.metricUid, observerId: observerInfo.observerId });
-              socket.emit('sensorData', sensorData);
+            for (let sensorId in sensors) {
+              let sensor = sensors[sensorId];
+              let sensorData = sensorDataCache[sensor.sensorInfo.sensorUid];
+              if (sensorData) {
+                _this.log('Sending sensor data to observer',  { sensorUid: sensor.sensorInfo.sensorUid, metricUid: sensorData.metricUid, observerId: observerInfo.observerId });
+                socket.emit('sensorData', sensorData);
+              }
             }
           });
         });
@@ -98,6 +101,7 @@ module.exports = function(config) {
       socket.on('disconnect', function() {
         let sensor = sensors[connectionInfo.id];
         delete sensors[connectionInfo.id];
+        delete sensorDataCache[sensor.sensorInfo.sensorUid];
         if (sensor) {
           _this.log('Sensor disconnected', { sensorUid: sensor.sensorInfo.sensorUid });
           for(let observerId in observers) {
