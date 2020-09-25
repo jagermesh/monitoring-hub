@@ -9,14 +9,20 @@ module.exports = function(config) {
 
   let logTag = 'HUB';
 
-  _this.log = function(message, tag) {
-    tag = tag || logTag;
-    console.log(colors.yellow(`[${tag}]`) + ' ' + message);
+  _this.log = function(message, attributes) {
+    let text = colors.yellow(`[${logTag}]`) + ' ' + message;
+    if (attributes) {
+      text += ' ' + colors.green(JSON.stringify(attributes));
+    }
+    console.log(text);
   };
 
-  _this.error = function(message, tag) {
-    tag = tag || logTag;
-    console.log(colors.yellow(`[${tag}]`) + ' ' + colors.red('[HUB]') + ' ' + message);
+  _this.error = function(message, attributes) {
+    let text = colors.yellow(`[${logTag}]`) + ' ' + colors.yellow(`[ERROR]`) + ' ' + message;
+    if (attributes) {
+      text += ' ' + colors.green(JSON.stringify(attributes));
+    }
+    console.log(text);
   };
 
   _this.start = function() {
@@ -29,7 +35,7 @@ module.exports = function(config) {
 
     // hub server
 
-    _this.log('Starting hub server');
+    _this.log('Starting hub');
 
     const hubServer = socketServer.listen(_this.config.hubPort, { log: false });
 
@@ -37,50 +43,45 @@ module.exports = function(config) {
       let connectionInfo = { id: socket.id
                            , address: socket.handshake.address.replace('::1', '127.0.0.1').replace('::ffff:', '')
                            };
-      _this.log('New connection ' + JSON.stringify(connectionInfo));
+      _this.log('New connection', connectionInfo);
       socket.on('registerSensor', function(data) {
         let sensorInfo = Object.assign({ sensorUid:   data.sensorUid
                                        , sensorName:  data.sensorName
                                        , metricsList: data.metricsList }, connectionInfo);
-        _this.log('Sensor registration request received ' + JSON.stringify(sensorInfo));
-        sensors[connectionInfo.id] = { socket: socket, sensorInfo: sensorInfo, isActive: true};
+        _this.log('New connection is sensor', { sensorUid: data.sensorUid });
+        sensors[connectionInfo.id] = { socket: socket, sensorInfo: sensorInfo };
         socket.emit('sensorRegistered', { sensorInfo: sensorInfo });
-        _this.log('Sensor registered ' + JSON.stringify(sensorInfo));
+        _this.log('Sensor registered', { sensorUid: data.sensorUid });
 
         setTimeout(function() {
-          _this.log('Sending sensor info to observers ' + JSON.stringify(sensorInfo));
+          _this.log('Sending sensor info to observers', { sensorUid: sensorInfo.sensorUid });
           for(let observerId in observers) {
-            observers[observerId].socket.emit('sensorRegistered', { sensorInfo: sensorInfo });
+            let observer = observers[observerId];
+            _this.log('Sending sensor info to observer', { sensorUid: sensorInfo.sensorUid, observerId: observer.observerInfo.observerId });
+            observer.socket.emit('sensorRegistered', { sensorInfo: sensorInfo });
           }
         });
       });
       socket.on('registerObserver', function(data) {
-        let observerInfo = Object.assign({ }, connectionInfo);
-        _this.log('Observer registration request received ' + JSON.stringify(observerInfo));
-        observers[connectionInfo.id] = { socket: socket, observerInfo: observerInfo, isActive: true};
+        let observerInfo = Object.assign({ observerId: connectionInfo.id }, connectionInfo);
+        _this.log('New connection is observer', { observerId: observerInfo.id });
+        observers[connectionInfo.id] = { socket: socket, observerInfo: observerInfo };
         socket.emit('observerRegistered', { observerInfo: observerInfo });
-        _this.log('Observer registered: ' + JSON.stringify(observerInfo));
+        _this.log('Observer registered', { observerId: observerInfo.id });
 
         setTimeout(function() {
           _this.log('Sending sensors list to observers');
           for (let sensorId in sensors) {
-            if (sensors[sensorId].isActive) {
-              let sensorInfo = sensors[sensorId].sensorInfo;
-              _this.log('Sending sensor info to observer ' + JSON.stringify(sensorInfo));
-              socket.emit('sensorRegistered', { sensorInfo: sensorInfo });
-            }
+            let sensor = sensors[sensorId];
+            _this.log('Sending sensor info to observer',  { sensorUid: sensor.sensorInfo.sensorUid, observerId: observerInfo.observerId });
+            socket.emit('sensorRegistered', { sensorInfo: sensor.sensorInfo });
           }
           setTimeout(function() {
             _this.log('Sending sensors data to observer');
-            for (let sensorId in sensors) {
-              if (sensors[sensorId].isActive) {
-                let sensorInfo = sensors[sensorId].sensorInfo;
-                let sensorData = sensorDataCache[sensorId];
-                if (sensorData) {
-                  _this.log('Sending sensor data to observer ' + JSON.stringify(sensorInfo));
-                  socket.emit('sensorData', sensorData);
-                }
-              }
+            for (let sensorUid in sensorDataCache) {
+              let sensorData = sensorDataCache[sensorUid];
+              _this.log('Sending sensor data to observer',  { sensorUid: sensorData.sensorUid, metricUid: sensorData.metricUid, observerId: observerInfo.observerId });
+              socket.emit('sensorData', sensorData);
             }
           });
         });
@@ -89,26 +90,27 @@ module.exports = function(config) {
         let sensorData = Object.assign({ }, data);
         sensorDataCache[sensorData.sensorUid] = sensorData;
         for (let observerId in observers) {
-          if (observers[observerId].isActive) {
-            observers[observerId].socket.emit('sensorData', sensorData);
-          }
+          let observer = observers[observerId];
+          // _this.log('Sending sensor data to observer',  { sensorUid: sensorData.sensorUid, metricUid: sensorData.metricUid, observerId: observer.observerInfo.observerId });
+          observer.socket.emit('sensorData', sensorData);
         }
       });
       socket.on('disconnect', function() {
         let sensor = sensors[connectionInfo.id];
+        delete sensors[connectionInfo.id];
         if (sensor) {
-          sensor.isActive = false;
+          _this.log('Sensor disconnected', { sensorUid: sensor.sensorInfo.sensorUid });
           for(let observerId in observers) {
-            if (observers[observerId].isActive) {
-              observers[observerId].socket.emit('sensorUnregistered', { sensorInfo: sensor.sensorInfo });
-            }
+            let observer = observers[observerId];
+            _this.log('Informing observer about sensor disconnection',  { sensorUid: sensor.sensorInfo.sensorUid, observerId: observer.observerInfo.observerId });
+            observers[observerId].socket.emit('sensorUnregistered', { sensorInfo: sensor.sensorInfo });
           }
-          _this.log('Sensor disconnected ' + JSON.stringify(sensor.sensorInfo));
+          _this.log('Sensor disconnected', { sensorUid: sensor.sensorInfo.sensorUid });
         }
         let observer = observers[connectionInfo.id];
+        delete observers[connectionInfo.id];
         if (observer) {
-          observer.isActive = false;
-          _this.log('Observer disconnected ' + JSON.stringify(observer.observerInfo));
+          _this.log('Observer disconnected', { observerId: observer.observerInfo.observerId });
         }
       });
     });
