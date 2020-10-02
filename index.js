@@ -1,31 +1,34 @@
 const colors       = require('colors');
 const socketServer = require('socket.io');
 
-module.exports = function(config) {
+class MonitoringHub {
 
-  const _this = this;
+  constructor(config) {
 
-  _this.config = Object.assign({ hubPort: 8082 }, config);
+    const _this = this;
 
-  let logTag = 'HUB';
+    _this.hubConfig = Object.assign({ hubPort: 8082 }, config);
 
-  _this.log = function(message, attributes) {
-    let text = colors.yellow(`[${logTag}]`) + ' ' + message;
+  }
+
+  log(message, attributes, isError) {
+
+    const logTag = 'HUB';
+    let text = colors.yellow(`[${logTag}]`);
+    if (isError) {
+      text += ' ' + colors.yellow(`[ERROR]`);
+    }
+    text += ' ' + message;
     if (attributes) {
       text += ' ' + colors.green(JSON.stringify(attributes));
     }
     console.log(text);
-  };
 
-  _this.error = function(message, attributes) {
-    let text = colors.yellow(`[${logTag}]`) + ' ' + colors.yellow(`[ERROR]`) + ' ' + message;
-    if (attributes) {
-      text += ' ' + colors.green(JSON.stringify(attributes));
-    }
-    console.log(text);
-  };
+  }
 
-  _this.start = function() {
+  start() {
+
+    const _this = this;
 
     const observers = [];
     const sensors   = [];
@@ -34,7 +37,7 @@ module.exports = function(config) {
 
     _this.log('Starting hub');
 
-    const hubServer = socketServer.listen(_this.config.hubPort, { log: false });
+    const hubServer = socketServer.listen(_this.hubConfig.hubPort, { log: false });
 
     hubServer.on('connection', function (socket) {
       let connectionInfo = { id: socket.id
@@ -121,8 +124,10 @@ module.exports = function(config) {
       });
     });
 
-    _this.log('Listening on port ' + _this.config.hubPort);
+    _this.log('Listening on port ' + _this.hubConfig.hubPort);
 
-  };
+  }
 
-};
+}
+
+module.exports = MonitoringHub;
