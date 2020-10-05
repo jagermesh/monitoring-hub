@@ -31,7 +31,7 @@ class MonitoringHub {
     const _this = this;
 
     const observers = [];
-    const sensors   = [];
+    const metrics   = [];
 
     // hub server
 
@@ -40,81 +40,75 @@ class MonitoringHub {
     const hubServer = socketServer.listen(_this.hubConfig.hubPort, { log: false });
 
     hubServer.on('connection', function (socket) {
-      let connectionInfo = { id: socket.id
+      let connectionInfo = { id:      socket.id
                            , address: socket.handshake.address.replace('::1', '127.0.0.1').replace('::ffff:', '')
                            };
-      let connection = { sensors: [], observers: [] };
+      let connection = { metrics: [], observers: [] };
       _this.log('New connection', connectionInfo);
-      socket.on('registerSensor', function(data) {
-        let sensorInfo = Object.assign({ sensorUid:   data.sensorUid
-                                       , sensorName:  data.sensorName
-                                       , metricsList: data.metricsList }, connectionInfo);
-        _this.log('New connection is sensor', { sensorUid: data.sensorUid });
-        if (!sensors[sensorInfo.sensorUid]) {
-          let sensor = { socket: socket, sensorInfo: sensorInfo };
-          sensors[sensorInfo.sensorUid] = sensor;
-          connection.sensors.push(sensor);
-          socket.emit('sensorRegistered', { sensorInfo: sensorInfo });
-          _this.log('Sensor registered', { sensorUid: data.sensorUid });
-
-          _this.log('Sending sensor info to observers', { sensorUid: sensorInfo.sensorUid });
+      socket.on('registerMetric', function(metricDescriptor) {
+        if (!metrics[metricDescriptor.metricInfo.metricUid]) {
+          metricDescriptor.sensorInfo.sensorId = connectionInfo.id;
+          metricDescriptor.sensorInfo.sensorLocation = connectionInfo.address;
+          let metric = { socket: socket, metricDescriptor: metricDescriptor };
+          _this.log('New connection is metric', { metricUid: metric.metricDescriptor.metricInfo.metricUid });
+          metrics[metric.metricDescriptor.metricInfo.metricUid] = metric;
+          connection.metrics.push(metric);
+          socket.emit('metricRegistered', metric.metricDescriptor);
+          _this.log('Metric registered', metric.metricDescriptor);
+          _this.log('Sending metric info to observers', metric.metricDescriptor);
           for(let observerId in observers) {
             let observer = observers[observerId];
-            _this.log('Sending sensor info to observer', { sensorUid: sensorInfo.sensorUid, observerId: observer.observerInfo.observerId });
-            observer.socket.emit('sensorRegistered', { sensorInfo: sensorInfo });
+            _this.log('Sending metric info to observer', { observerId: observer.observerInfo.observerId, metricUid: metric.metricDescriptor.metricInfo.metricUid });
+            observer.socket.emit('registerMetric', metric.metricDescriptor);
           }
         }
       });
       socket.on('registerObserver', function(data) {
-        let observerInfo = Object.assign({ observerId: connectionInfo.id }, connectionInfo);
-        _this.log('New connection is observer', { observerId: observerInfo.id });
+        let observerInfo = { };
         if (!observers[connectionInfo.id]) {
+          observerInfo.observerId       = connectionInfo.id;
+          observerInfo.observerLocation = connectionInfo.address;
           let observer = { socket: socket, observerInfo: observerInfo };
+          _this.log('New connection is observer', { observerId: observer.observerInfo.observerId });
           observers[connectionInfo.id] = observer;
           socket.emit('observerRegistered', { observerInfo: observerInfo });
           _this.log('Observer registered', { observerId: observerInfo.id });
-
-          _this.log('Sending sensors list to observers');
-          for (let sensorUid in sensors) {
-            let sensor = sensors[sensorUid];
-            _this.log('Sending sensor info to observer',  { sensorUid: sensor.sensorInfo.sensorUid, observerId: observerInfo.observerId });
-            socket.emit('sensorRegistered', { sensorInfo: sensor.sensorInfo });
+          for (let metricUid in metrics) {
+            let metric = metrics[metricUid];
+            _this.log('Sending metric info to observer',  { observerId: observer.observerInfo.observerId, metricUid: metric.metricDescriptor.metricInfo.metricUid });
+            socket.emit('registerMetric', metric.metricDescriptor);
           }
-          _this.log('Sending sensors data to observers');
-          for (let sensorUid in sensors) {
-            let sensor = sensors[sensorUid];
-            if (sensor.sensorData) {
-              _this.log('Sending sensor data to observer',  { sensorUid: sensor.sensorInfo.sensorUid, metricUid: sensor.sensorData.metricUid, observerId: observerInfo.observerId });
-              socket.emit('sensorData', sensor.sensorData);
+          for (let metricUid in metrics) {
+            let metric = metrics[metricUid];
+            if (metric.metricData) {
+              _this.log('Sending metric data to observer',  { observerId: observer.observerInfo.observerId, metricUid: metric.metricDescriptor.metricInfo.metricUid });
+              socket.emit('metricData', metric.metricData);
             }
           }
         }
       });
-      socket.on('sensorData', function(data) {
-        let sensorInfo = { sensorUid: data.sensorUid };
-        let sensor = sensors[sensorInfo.sensorUid];
-        if (sensor) {
-          let sensorData = Object.assign({ }, data);
-          sensor.sensorData = sensorData;
+      socket.on('metricData', function(data) {
+        let metric = metrics[data.metricUid];
+        if (metric) {
+          metric.metricData = data.metricData;
           for (let observerId in observers) {
             let observer = observers[observerId];
-            // _this.log('Sending sensor data to observer',  { sensorUid: sensorData.sensorUid, metricUid: sensorData.metricUid, observerId: observer.observerInfo.observerId });
-            observer.socket.emit('sensorData', sensorData);
+            observer.socket.emit('metricData', data);
           }
         }
       });
       socket.on('disconnect', function() {
         _this.log('Disconnection', connectionInfo);
-        connection.sensors.map(function(sensor) {
-          delete sensors[sensor.sensorInfo.sensorUid];
-          _this.log('Disconnection of sensor', { sensorUid: sensor.sensorInfo.sensorUid });
-          _this.log('Informing observers about sensor disconnection',  { sensorUid: sensor.sensorInfo.sensorUid });
+        connection.metrics.map(function(metric) {
+          delete metrics[metric.metricDescriptor.metricInfo.metricUid];
+          _this.log('Disconnection of metric', metric.metricDescriptor);
+          _this.log('Informing observers about metric disconnection',  metric.metricDescriptor);
           for(let observerId in observers) {
             let observer = observers[observerId];
-            _this.log('Informing observer about sensor disconnection',  { sensorUid: sensor.sensorInfo.sensorUid, observerId: observer.observerInfo.observerId });
-            observer.socket.emit('sensorUnregistered', { sensorInfo: sensor.sensorInfo });
+            _this.log('Informing observer about metric disconnection',  { observerId: observer.observerInfo.observerId, metricUid: metric.metricDescriptor.metricInfo.metricUid });
+            observer.socket.emit('unregisterMetric', metric.metricDescriptor);
           }
-          _this.log('Sensor disconnected', { sensorUid: sensor.sensorInfo.sensorUid });
+          _this.log('Metric disconnected', metric.metricDescriptor);
         });
         let observer = observers[connectionInfo.id];
         delete observers[connectionInfo.id];
