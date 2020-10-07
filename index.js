@@ -72,7 +72,7 @@ class MonitoringHub {
           _this.log('New connection is observer', { observerId: observer.observerInfo.observerId });
           observers[connectionInfo.id] = observer;
           socket.emit('observerRegistered', { observerInfo: observerInfo });
-          _this.log('Observer registered', { observerId: observerInfo.id });
+          _this.log('Observer registered', observer.observerInfo);
           for (let metricUid in metrics) {
             let metric = metrics[metricUid];
             _this.log('Sending metric info to observer',  { observerId: observer.observerInfo.observerId, metricUid: metric.metricDescriptor.metricInfo.metricUid });
