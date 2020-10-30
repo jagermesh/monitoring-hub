@@ -9,13 +9,13 @@
     "gulp": "^4.0.2",
     "gulp-jshint": "^2.1.0",
     "jshint": "^2.12.0",
-    "monitoring-dashboard": "^1.0.22",
-    "monitoring-progress-logger": "^1.0.11",
-    "monitoring-sensor": "^1.0.13"
+    "monitoring-dashboard": "^1.0.39",
+    "monitoring-progress-logger": "^1.0.12",
+    "monitoring-sensor": "^1.0.26"
   },
   "dependencies": {
-    "socket.io": "^2.3.0",
-    "colors": "*"
+    "colors": "*",
+    "socket.io": "^2.3.0"
   },
   "deprecated": false,
   "description": "Monitoring Hub",
