@@ -15,7 +15,7 @@
   },
   "dependencies": {
     "colors": "*",
-    "socket.io": "^3.0.4"
+    "socket.io": "2.3.0"
   },
   "deprecated": false,
   "description": "Monitoring Hub",
