@@ -1,5 +1,5 @@
 const colors       = require('colors');
-const socketServer = require('socket.io');
+const socketServer = require('socket.io')();
 
 class MonitoringHub {
 
