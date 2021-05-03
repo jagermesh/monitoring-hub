@@ -1,4 +1,4 @@
-const MonitoringHub = require(__dirname + '/index.js');
+const MonitoringHub = require(`${__dirname}/index.js`);
 
 const config = {
   hub: {
