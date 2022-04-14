@@ -2,7 +2,6 @@ const colors = require('colors');
 const socketServer = require('socket.io');
 
 class MonitoringHub {
-
   constructor(config) {
     const _this = this;
 
@@ -12,8 +11,6 @@ class MonitoringHub {
   }
 
   log(message, attributes, isError) {
-    const _this = this;
-
     const logTag = 'HUB';
 
     let text = colors.yellow(`[${logTag}]`);
@@ -47,11 +44,14 @@ class MonitoringHub {
         id: socket.id,
         address: socket.handshake.address.replace('::1', '127.0.0.1').replace('::ffff:', '')
       };
+
       let connection = {
         metrics: [],
         observers: []
       };
+
       _this.log('New connection', connectionInfo);
+
       socket.on('registerMetric', function(metricDescriptor) {
         if (!metrics[metricDescriptor.metricInfo.metricUid]) {
           metricDescriptor.sensorInfo.sensorId = connectionInfo.id;
@@ -78,7 +78,8 @@ class MonitoringHub {
           }
         }
       });
-      socket.on('registerObserver', function(data) {
+
+      socket.on('registerObserver', function() {
         let observerInfo = {};
         if (!observers[connectionInfo.id]) {
           observerInfo.observerId = connectionInfo.id;
@@ -115,6 +116,7 @@ class MonitoringHub {
           }
         }
       });
+
       socket.on('metricData', function(data) {
         let metric = metrics[data.metricUid];
         if (metric) {
@@ -125,6 +127,7 @@ class MonitoringHub {
           }
         }
       });
+
       socket.on('disconnect', function() {
         _this.log('Disconnection', connectionInfo);
         connection.metrics.map(function(metric) {
@@ -153,7 +156,6 @@ class MonitoringHub {
 
     _this.log(`Listening on port ${_this.hubConfig.hubPort}`);
   }
-
 }
 
 module.exports = MonitoringHub;
