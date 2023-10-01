@@ -5,13 +5,15 @@ const configs = {
   eslint: {
     src: [
       '*.js',
-    ]
-  }
+    ],
+  },
 };
 
-gulp.task('eslint', function() {
+gulp.task('eslint', () => {
   return gulp.src(configs.eslint.src)
-    .pipe(eslint({quiet: true}))
+    .pipe(eslint({
+      quiet: true,
+    }))
     .pipe(eslint.format())
     .pipe(eslint.failAfterError());
 });

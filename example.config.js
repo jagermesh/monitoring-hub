@@ -1,3 +1,3 @@
 module.exports = {
-  hubPort: 8082
+  hubPort: 8082,
 };
